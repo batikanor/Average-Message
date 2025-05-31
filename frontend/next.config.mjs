@@ -17,7 +17,10 @@ const nextConfig = {
   // process.env.NODE_ENV === "production"
   // ? "https://www.batikanor.com/nextathon-template"
   // : "",
-  assetPrefix: "",
+  assetPrefix:
+    process.env.NODE_ENV === "production"
+      ? "https://www.batikanor.com/average-message"
+      : "",
 
   // Enable trailing slashes in URLs for correct resolution
   trailingSlash: true,
