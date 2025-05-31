@@ -1,0 +1,31 @@
+stages:
+  - build
+  - pages
+
+build_frontend:
+  stage: build
+  image: docker:24.0.5
+  services:
+    - docker:24.0.5-dind
+  variables:
+    DOCKER_HOST: tcp://docker:2375/
+    DOCKER_TLS_CERTDIR: ""
+  script:
+    - export $(grep -v '^#' .env.ci | xargs)
+    - docker build --build-arg NEXT_PUBLIC_API_URL="$NEXT_PUBLIC_API_URL" ./frontend -t frontend-build
+    - docker create --name frontend-export frontend-build
+    - docker cp frontend-export:/app/out frontend/out
+    - docker rm frontend-export
+  artifacts:
+    paths:
+      - frontend/out
+
+pages:
+  stage: pages
+  script:
+    - mv frontend/out public
+  artifacts:
+    paths:
+      - public
+  only:
+    - main
