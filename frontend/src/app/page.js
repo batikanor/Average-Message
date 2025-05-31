@@ -11,6 +11,9 @@ export default function Home() {
   const [memories, setMemories] = useState([]);
   const [userLocation, setUserLocation] = useState(null);
   const [geoError, setGeoError] = useState("");
+  const [loadingMemories, setLoadingMemories] = useState(true);
+  const [memoriesError, setMemoriesError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     async function fetchMessage() {
@@ -29,6 +32,27 @@ export default function Home() {
     }
 
     fetchMessage();
+  }, []);
+
+  // Fetch all memories from backend on mount
+  useEffect(() => {
+    async function fetchMemories() {
+      setLoadingMemories(true);
+      setMemoriesError("");
+      try {
+        const apiUrl =
+          process.env.NEXT_PUBLIC_API_URL || "http://localhost:5555";
+        const res = await fetch(`${apiUrl}/api/memories`);
+        if (!res.ok) throw new Error("Failed to fetch memories");
+        const data = await res.json();
+        setMemories(data);
+      } catch (err) {
+        setMemoriesError("Could not load memories from server.");
+      } finally {
+        setLoadingMemories(false);
+      }
+    }
+    fetchMemories();
   }, []);
 
   // Get geolocation on mount
@@ -101,21 +125,34 @@ export default function Home() {
   };
 
   // Handle memory submission
-  const handleMemorySubmit = (e) => {
+  const handleMemorySubmit = async (e) => {
     e.preventDefault();
     if (!userLocation) return;
-    // Add new memory to local state
-    setMemories((prev) => [
-      ...prev,
-      {
-        id: Date.now(),
-        lat: userLocation.lat,
-        lng: userLocation.lng,
-        text: memoryText,
-        color: "#7f5af0", // Nice purple
-      },
-    ]);
-    closeModal();
+    setSubmitting(true);
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5555";
+      const res = await fetch(`${apiUrl}/api/memories`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: memoryText,
+          lat: userLocation.lat,
+          lng: userLocation.lng,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to submit memory");
+      setMemoryText("");
+      setShowModal(false);
+      // Refresh memories
+      const updated = await fetch(`${apiUrl}/api/memories`).then((r) =>
+        r.json()
+      );
+      setMemories(updated);
+    } catch (err) {
+      alert("Could not submit memory. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -177,6 +214,17 @@ export default function Home() {
       {geoError && (
         <div className="absolute top-20 left-1/2 transform -translate-x-1/2 bg-red-600 bg-opacity-80 text-white px-4 py-2 rounded-lg shadow-lg text-center text-base border border-red-400 max-w-[90vw] z-50">
           {geoError}
+        </div>
+      )}
+      {/* Memories loading/error */}
+      {loadingMemories && (
+        <div className="absolute top-32 left-1/2 transform -translate-x-1/2 bg-gray-800 bg-opacity-80 text-white px-4 py-2 rounded-lg shadow-lg text-center text-base border border-gray-700 max-w-[90vw] z-50">
+          Loading memories...
+        </div>
+      )}
+      {memoriesError && (
+        <div className="absolute top-32 left-1/2 transform -translate-x-1/2 bg-red-600 bg-opacity-80 text-white px-4 py-2 rounded-lg shadow-lg text-center text-base border border-red-400 max-w-[90vw] z-50">
+          {memoriesError}
         </div>
       )}
       {/* Backend message card at the bottom */}
@@ -250,22 +298,23 @@ export default function Home() {
                 maxLength={280}
                 required
                 aria-label="Memory text"
-                disabled={!userLocation}
+                disabled={!userLocation || submitting}
               />
               <div className="flex gap-4 justify-end">
                 <button
                   type="button"
                   onClick={closeModal}
                   className="px-4 py-2 rounded-lg bg-gray-700 bg-opacity-70 text-white hover:bg-opacity-90 transition-all focus:outline-none focus:ring-2 focus:ring-gray-400"
+                  disabled={submitting}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   className="px-6 py-2 rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 text-white font-semibold shadow-lg hover:from-blue-600 hover:to-purple-600 transition-all focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-50 disabled:cursor-not-allowed"
-                  disabled={!userLocation}
+                  disabled={!userLocation || submitting}
                 >
-                  Submit
+                  {submitting ? "Submitting..." : "Submit"}
                 </button>
               </div>
             </form>

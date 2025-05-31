@@ -59,7 +59,7 @@ export default function GlobeComponent({ memories, userLocation }) {
         pointsData={points}
         pointLat={(d) => d.lat}
         pointLng={(d) => d.lng}
-        pointColor={(d) => d.color}
+        pointColor={(d) => d.color || "#ff0000"} // red fallback (if theres no color thats fetched from the db, which is the case at the time of this commit, just mkea it red)
         pointAltitude={0.015} // much thinner
         pointRadius={0.08} // much thinner
         pointResolution={16}
