@@ -1,0 +1,28 @@
+# version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "${FRONTEND_PORT}:${FRONTEND_INTERNAL_PORT}"
+    volumes: # REMOVE IF PROBLEM
+      - ./frontend:/app # Mount the frontend code for live updates
+      - /app/node_modules # Separate volume for node_modules
+    environment:
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+      - PORT=${FRONTEND_INTERNAL_PORT}
+    command: npm run dev # Run Next.js in dev mode for hot-reloading
+
+  backend:
+    build:
+      context: ./backend
+    ports:
+      # left side is port you access from your computer, right side is port your app listens to in the container.
+      - "${BACKEND_PORT}:${BACKEND_INTERNAL_PORT}"
+    volumes:
+      - ./backend:/app # Mount the backend code
+    environment:
+      - FLASK_ENV=development
+      - PORT=${BACKEND_INTERNAL_PORT}
+    command: flask run --host=0.0.0.0 --port=${BACKEND_INTERNAL_PORT} # Enable Flask dev server with hot reload
