@@ -317,10 +317,10 @@ export default function Home() {
         </div>
       )}
       {/* Backend message card at the bottom */}
-      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-gray-900 bg-opacity-80 text-white px-4 py-2 md:px-6 md:py-3 rounded-lg shadow-lg text-center text-base md:text-lg border border-gray-700 max-w-[90vw]">
+      {/* <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-gray-900 bg-opacity-80 text-white px-4 py-2 md:px-6 md:py-3 rounded-lg shadow-lg text-center text-base md:text-lg border border-gray-700 max-w-[90vw]">
         <span className="font-semibold">Message from backend:</span>{" "}
         {message || "Loading..."}
-      </div>
+      </div> */}
 
       {/* Floating Add Memory Button */}
       <div className="fixed bottom-8 right-8 z-50 flex flex-row items-end gap-3">

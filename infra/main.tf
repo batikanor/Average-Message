@@ -110,10 +110,14 @@ resource "null_resource" "deploy_backend" {
       "systemctl enable docker",
       "systemctl start docker",
 
+      # ── run Postgres container ───────────────────────────────────────────────
+      "docker rm -f postgres || true",
+      "docker run -d --name postgres -e POSTGRES_USER=userxx -e POSTGRES_PASSWORD=yolodoneresser -e POSTGRES_DB=db -p 5432:5432 postgres:15",
+
       # ── build & (re)run backend container ───────────────────────────────────
       "cd /root/backend && docker build -t backend .",
       "docker rm -f backend || true",
-      "docker run -d --name backend -p 5000:5000 backend"
+      "docker run -d --name backend -p 5000:5000 -e DATABASE_URL=postgresql://userxx:yolodoneresser@localhost:5432/db backend"
     ]
     connection {
       type        = "ssh"
