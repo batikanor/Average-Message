@@ -1,3 +1,7 @@
+import {
+  NotificationProvider,
+  TransactionPopupProvider,
+} from "@blockscout/app-sdk";
 import { MiniKitProvider } from "@worldcoin/minikit-js/minikit-provider";
 import localFont from "next/font/local";
 import "./globals.css";
@@ -25,10 +29,14 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
       <MiniKitProvider>
-        <body className="antialiased min-h-screen w-full bg-gradient-to-br from-gray-900 via-black to-gray-800">
-          {/* Minimal layout: just render children centered on a dark background */}
-          {children}
-        </body>
+        <NotificationProvider>
+          <TransactionPopupProvider>
+            <body className="antialiased min-h-screen w-full bg-gradient-to-br from-gray-900 via-black to-gray-800">
+              {/* Minimal layout: just render children centered on a dark background */}
+              {children}
+            </body>
+          </TransactionPopupProvider>
+        </NotificationProvider>
       </MiniKitProvider>
     </html>
   );

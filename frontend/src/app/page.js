@@ -1,5 +1,7 @@
 "use client";
+import { useNotification, useTransactionPopup } from "@blockscout/app-sdk";
 import { MiniKit, VerificationLevel } from "@worldcoin/minikit-js";
+import { ethers } from "ethers";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Globe from "../components/Globe";
 
@@ -21,6 +23,14 @@ export default function Home() {
   const [generating, setGenerating] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const { openTxToast } = useNotification();
+  const { openPopup } = useTransactionPopup();
+
+  const CONTRACT_ADDRESS = "0xYourContractAddressHere";
+  const CONTRACT_ABI = [
+    "function storeMemory(string memoryText, int256 lat, int256 lng) public",
+    "function getAllMemories() public view returns (tuple(string memoryText, int256 lat, int256 lng)[])",
+  ];
 
   useEffect(() => {
     async function fetchMessage() {
@@ -41,25 +51,38 @@ export default function Home() {
     fetchMessage();
   }, []);
 
-  // Fetch all memories from backend on mount
+  // Helper to fetch all memories from chain
+  const fetchMemoriesFromChain = async () => {
+    if (!window.ethereum) return [];
+    const provider = new ethers.providers.Web3Provider(window.ethereum);
+    const contract = new ethers.Contract(
+      CONTRACT_ADDRESS,
+      CONTRACT_ABI,
+      provider
+    );
+    const memories = await contract.getAllMemories();
+    // Convert lat/lng back to float
+    return memories.map((m) => ({
+      text: m.memoryText,
+      lat: Number(m.lat) / 1e6,
+      lng: Number(m.lng) / 1e6,
+    }));
+  };
+
+  // Replace useEffect for fetching memories
   useEffect(() => {
-    async function fetchMemories() {
+    (async () => {
       setLoadingMemories(true);
       setMemoriesError("");
       try {
-        const apiUrl =
-          process.env.NEXT_PUBLIC_API_URL || "http://localhost:5555";
-        const res = await fetch(`${apiUrl}/api/memories`);
-        if (!res.ok) throw new Error("Failed to fetch memories");
-        const data = await res.json();
-        setMemories(data);
+        const allMemories = await fetchMemoriesFromChain();
+        setMemories(allMemories);
       } catch (err) {
-        setMemoriesError("Could not load memories from server.");
+        setMemoriesError("Could not load memories from chain.");
       } finally {
         setLoadingMemories(false);
       }
-    }
-    fetchMemories();
+    })();
   }, []);
 
   // Get geolocation on mount
@@ -131,32 +154,41 @@ export default function Home() {
     setMemoryText("");
   };
 
-  // Handle memory submission
+  // Replace handleMemorySubmit with on-chain logic
   const handleMemorySubmit = async (e) => {
     e.preventDefault();
     if (!userLocation) return;
     setSubmitting(true);
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5555";
-      const res = await fetch(`${apiUrl}/api/memories`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          text: memoryText,
-          lat: userLocation.lat,
-          lng: userLocation.lng,
-        }),
-      });
-      if (!res.ok) throw new Error("Failed to submit memory");
+      if (!window.ethereum) {
+        alert("MetaMask is required to submit a memory on-chain.");
+        setSubmitting(false);
+        return;
+      }
+      await window.ethereum.request({ method: "eth_requestAccounts" });
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      const signer = provider.getSigner();
+      const contract = new ethers.Contract(
+        CONTRACT_ADDRESS,
+        CONTRACT_ABI,
+        signer
+      );
+      // Send transaction
+      const tx = await contract.storeMemory(
+        memoryText,
+        Math.round(userLocation.lat * 1e6),
+        Math.round(userLocation.lng * 1e6)
+      );
+      // Show Blockscout toast
+      openTxToast("1", tx.hash); // '1' is Ethereum mainnet; change if needed
+      await tx.wait();
       setMemoryText("");
       setShowModal(false);
-      // Refresh memories
-      const updated = await fetch(`${apiUrl}/api/memories`).then((r) =>
-        r.json()
-      );
-      setMemories(updated);
+      // Fetch updated memories from chain
+      const allMemories = await fetchMemoriesFromChain();
+      setMemories(allMemories);
     } catch (err) {
-      alert("Could not submit memory. Please try again.");
+      alert("Could not submit memory on-chain. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -302,6 +334,18 @@ export default function Home() {
     }
   };
 
+  // Demo handlers for Blockscout SDK
+  const handleShowTxToast = () => {
+    // Example tx hash and chainId for Ethereum mainnet
+    openTxToast(
+      "1",
+      "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+    );
+  };
+  const handleShowTxHistory = () => {
+    openPopup({ chainId: "1" });
+  };
+
   return (
     <main
       ref={containerRef}
@@ -422,6 +466,23 @@ export default function Home() {
               d="M12 3v2m0 14v2m9-9h-2M5 12H3m15.364-6.364l-1.414 1.414M6.05 17.95l-1.414 1.414m0-13.414l1.414 1.414M17.95 17.95l1.414 1.414"
             />
           </svg>
+        </button>
+        {/* Blockscout SDK Demo Buttons */}
+        <button
+          onClick={handleShowTxToast}
+          className="bg-gradient-to-br from-green-600 via-blue-600 to-purple-600 text-white rounded-full shadow-2xl p-3 hover:scale-105 transition-all focus:outline-none focus:ring-4 focus:ring-green-300 text-base"
+          aria-label="Show Blockscout Tx Toast"
+          title="Show Blockscout Transaction Toast"
+        >
+          Show Tx Toast
+        </button>
+        <button
+          onClick={handleShowTxHistory}
+          className="bg-gradient-to-br from-yellow-500 via-orange-500 to-pink-500 text-white rounded-full shadow-2xl p-3 hover:scale-105 transition-all focus:outline-none focus:ring-4 focus:ring-yellow-300 text-base"
+          aria-label="Show Blockscout Tx History"
+          title="Show Blockscout Transaction History"
+        >
+          Tx History
         </button>
         {/* Add Memory Button (existing +) */}
         <button
