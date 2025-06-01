@@ -23,10 +23,12 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
+      {/* <MinikitProvider> */}
       <body className="antialiased min-h-screen w-full bg-gradient-to-br from-gray-900 via-black to-gray-800 flex items-center justify-center">
         {/* Minimal layout: just render children centered on a dark background */}
         {children}
       </body>
+      {/* </MinikitProvider> */}
     </html>
   );
 }

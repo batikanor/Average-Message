@@ -1,6 +1,9 @@
 "use client";
+import { MiniKit, VerificationLevel } from "@worldcoin/minikit-js";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Globe from "../components/Globe";
+
+// NOTE: Make sure to create the action ID 'add-memory' in the Worldcoin Developer Portal and configure it as needed for your app.
 
 export default function Home() {
   const [message, setMessage] = useState("");
@@ -16,6 +19,8 @@ export default function Home() {
   const [submitting, setSubmitting] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [isVerified, setIsVerified] = useState(false);
+  const [verifying, setVerifying] = useState(false);
 
   useEffect(() => {
     async function fetchMessage() {
@@ -244,6 +249,58 @@ export default function Home() {
     }
   }, []);
 
+  const verifyPayload = {
+    action: "add-memory", // Replace with your actual action ID from Developer Portal
+    verification_level: VerificationLevel.Orb,
+  };
+
+  const handleVerify = async () => {
+    if (!MiniKit.isInstalled()) {
+      alert("World App is not installed.");
+      return;
+    }
+    setVerifying(true);
+    try {
+      const { finalPayload } = await MiniKit.commandsAsync.verify(
+        verifyPayload
+      );
+      if (finalPayload.status === "error") {
+        alert("Verification failed.");
+        return;
+      }
+      // Send proof to backend for verification
+      const verifyResponse = await fetch("/api/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          payload: finalPayload,
+          action: "add-memory",
+          signal: undefined,
+        }),
+      });
+      const verifyResponseJson = await verifyResponse.json();
+      if (verifyResponseJson.status === 200) {
+        setIsVerified(true);
+        alert("Verification success!");
+      } else {
+        alert("Verification failed.");
+      }
+    } catch (err) {
+      alert("Verification error.");
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  // Replace openModal with verification check
+  const handleAddMemoryClick = () => {
+    if (isVerified) {
+      openModal();
+    } else {
+      handleVerify();
+    }
+  };
+
   return (
     <main
       ref={containerRef}
@@ -374,30 +431,38 @@ export default function Home() {
         </button>
         {/* Add Memory Button (existing +) */}
         <button
-          onClick={openModal}
+          onClick={handleAddMemoryClick}
           className="bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 text-white rounded-full shadow-2xl p-5 hover:scale-105 transition-all focus:outline-none focus:ring-4 focus:ring-blue-300 disabled:opacity-50 disabled:cursor-not-allowed text-xl"
           aria-label="Add a memory"
-          disabled={!userLocation || resetting || generating}
+          disabled={!userLocation || resetting || generating || verifying}
           title={
-            !userLocation
+            verifying
+              ? "Verifying..."
+              : !userLocation
               ? "Enable geolocation to add a memory"
-              : "Add a memory"
+              : isVerified
+              ? "Add a memory"
+              : "Verify with World ID to add a memory"
           }
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={2}
-            stroke="currentColor"
-            className="w-8 h-8"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M12 4v16m8-8H4"
-            />
-          </svg>
+          {verifying ? (
+            <span className="animate-pulse">Verifying...</span>
+          ) : (
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={2}
+              stroke="currentColor"
+              className="w-8 h-8"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 4v16m8-8H4"
+              />
+            </svg>
+          )}
         </button>
       </div>
 

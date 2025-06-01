@@ -96,7 +96,7 @@ resource "null_resource" "deploy_backend" {
       "curl -L -o /tmp/caddy.deb https://github.com/caddyserver/caddy/releases/download/v2.7.6/caddy_2.7.6_linux_amd64.deb",
       "dpkg -i /tmp/caddy.deb",
       "mkdir -p /etc/caddy",
-      "echo -e '${var.domain} {\\n  reverse_proxy localhost:5000\\n}' > /etc/caddy/Caddyfile",
+      "printf '%s\n' '${var.domain} {' '  reverse_proxy localhost:5000' '}' > /etc/caddy/Caddyfile",
       "systemctl reload-or-restart caddy",
 
       # ── install Docker ─────────────────────────────────────────────────────────
@@ -110,14 +110,17 @@ resource "null_resource" "deploy_backend" {
       "systemctl enable docker",
       "systemctl start docker",
 
-      # ── run Postgres container ───────────────────────────────────────────────
-      "docker rm -f postgres || true",
-      "docker run -d --name postgres -e POSTGRES_USER=userxx -e POSTGRES_PASSWORD=yolodoneresser -e POSTGRES_DB=db -p 5432:5432 postgres:15",
+      # ── create Docker network ───────────────────────────────────────────────
+      "docker network create appnet || true",
 
-      # ── build & (re)run backend container ───────────────────────────────────
+      # ── run Postgres container on appnet ───────────────────────────────────
+      "docker rm -f postgres || true",
+      "docker run -d --name postgres --network=appnet -e POSTGRES_USER=userxx -e POSTGRES_PASSWORD=yolodoneresser -e POSTGRES_DB=db -p 5432:5432 postgres:15",
+
+      # ── build & (re)run backend container on appnet ────────────────────────
       "cd /root/backend && docker build -t backend .",
       "docker rm -f backend || true",
-      "docker run -d --name backend -p 5000:5000 -e DATABASE_URL=postgresql://userxx:yolodoneresser@localhost:5432/db backend"
+      "docker run -d --name backend --network=appnet -p 5000:5000 -e DATABASE_URL=postgresql://userxx:yolodoneresser@postgres:5432/db backend"
     ]
     connection {
       type        = "ssh"
