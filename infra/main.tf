@@ -32,6 +32,12 @@ variable "server_name" {
   type        = string
 }
 
+variable "OPENAI_API_KEY" {
+  description = "OpenAI API Key"
+  type        = string
+  sensitive   = true
+}
+
 # Example server resource (customize as needed)
 resource "hcloud_server" "backend" {
   name        = var.server_name
@@ -120,7 +126,7 @@ resource "null_resource" "deploy_backend" {
       # ── build & (re)run backend container on appnet ────────────────────────
       "cd /root/backend && docker build -t backend .",
       "docker rm -f backend || true",
-      "docker run -d --name backend --network=appnet -p 5000:5000 -e DATABASE_URL=postgresql://userxx:yolodoneresser@postgres:5432/db -e OPENAI_API_KEY=${OPENAI_API_KEY} backend"
+      "docker run -d --name backend --network=appnet -p 5000:5000 -e DATABASE_URL=postgresql://userxx:yolodoneresser@postgres:5432/db -e OPENAI_API_KEY=${var.OPENAI_API_KEY} backend"
     ]
     connection {
       type        = "ssh"
