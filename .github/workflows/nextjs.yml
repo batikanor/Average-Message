@@ -63,6 +63,11 @@ jobs:
         working-directory: ./frontend
         run: ${{ steps.detect-package-manager.outputs.manager }} ${{ steps.detect-package-manager.outputs.command }}
 
+      # Copy .env.ci to .env.local
+      - name: Use .env.ci as .env.local
+        working-directory: ./frontend
+        run: cp .env.ci .env.local
+
       # Build Next.js - run step, working-directory allowed.
       - name: Build with Next.js
         working-directory: ./frontend
