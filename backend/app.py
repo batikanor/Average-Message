@@ -2,8 +2,69 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 import os
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import select
 from datetime import datetime
+import math
+import random
 
+DISTANCE_ALLOWED_THRESHOLD = float(
+    os.getenv("DISTANCE_ALLOWED_THRESHOLD", 60)  # default 50 m
+)
+
+# ---------- helpers ----------
+
+EARTH_RADIUS_M = 6_371_000  # mean earth radius in metres
+
+def haversine(lat1, lon1, lat2, lon2):
+    """Great-circle distance between two (lat, lon) pairs in metres."""
+    d_lat = math.radians(lat2 - lat1)
+    d_lon = math.radians(lon2 - lon1)
+    lat1 = math.radians(lat1)
+    lat2 = math.radians(lat2)
+
+    a = math.sin(d_lat / 2) ** 2 + \
+        math.cos(lat1) * math.cos(lat2) * math.sin(d_lon / 2) ** 2
+    return 2 * EARTH_RADIUS_M * math.asin(math.sqrt(a))
+
+
+def random_offset(lat, max_metre):
+    """Return a small (d_lat, d_lon) offset that is ≤ max_metre metres long."""
+    # convert wanted radius [m] to degrees at this latitude
+    radius_deg_lat = max_metre / 111_132          # 1° lat ≈ 111 132 m
+    radius_deg_lon = max_metre / (111_132 * math.cos(math.radians(lat)))
+
+    r = random.random() * 1.1 * radius_deg_lat    # 0 – 110 % of radius
+    theta = random.random() * 2 * math.pi
+    return r * math.cos(theta), r * math.sin(theta)  # (d_lat, d_lon)
+
+
+def place_with_gap(lat, lon):
+    """
+    Jitter (lat, lon) until it is at least DISTANCE_ALLOWED_THRESHOLD metres
+    from every existing Memory.  Returns a (lat, lon) pair.
+    """
+    # Fetch only what we need: existing coords
+    existing = db.session.execute(
+        select(Memory.lat, Memory.lng)
+    ).all()
+
+    max_attempts = 25
+    for _ in range(max_attempts):
+        too_close = False
+        for lat2, lon2 in existing:
+            if haversine(lat, lon, lat2, lon2) < DISTANCE_ALLOWED_THRESHOLD:
+                too_close = True
+                break
+        if not too_close:
+            return lat, lon  # safe spot!
+
+        # Otherwise nudge and try again
+        d_lat, d_lon = random_offset(lat, DISTANCE_ALLOWED_THRESHOLD)
+        lat += d_lat
+        lon += d_lon
+
+    # Fallback: give up after max_attempts and return best-effort coords
+    return lat, lon
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes and origins
 
@@ -38,8 +99,10 @@ def hello():
 def add_memory():
     data = request.get_json()
     text = data.get('text')
-    lat = data.get('lat')
-    lng = data.get('lng')
+    # lat = data.get('lat')
+    # lng = data.get('lng')
+    lat, lng = place_with_gap(data["lat"], data["lng"])
+
     if not text or lat is None or lng is None:
         return jsonify({'error': 'Missing required fields'}), 400
     memory = Memory(text=text, lat=lat, lng=lng)
