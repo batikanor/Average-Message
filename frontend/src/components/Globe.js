@@ -145,16 +145,16 @@ function haversineKm(lat1, lon1, lat2, lon2) {
 }
 
 function getClusterColor(count) {
-  // Interpolate from #ffaa00 (orange) to #000000 (black)
-  // Assume count 1 = orange, count >= 100 = black
+  // Interpolate from #ffaa00 (orange) to #8000ff (purple)
+  // Assume count 1 = orange, count >= 100 = purple
   const maxCount = 100;
   const t = Math.min(count, maxCount) / maxCount;
-  // Interpolate RGB
+  // Orange: rgb(255,170,0), Purple: rgb(128,0,255)
   const orange = { r: 255, g: 170, b: 0 };
-  const black = { r: 0, g: 0, b: 0 };
-  const r = Math.round(orange.r * (1 - t) + black.r * t);
-  const g = Math.round(orange.g * (1 - t) + black.g * t);
-  const b = Math.round(orange.b * (1 - t) + black.b * t);
+  const purple = { r: 128, g: 0, b: 255 };
+  const r = Math.round(orange.r * (1 - t) + purple.r * t);
+  const g = Math.round(orange.g * (1 - t) + purple.g * t);
+  const b = Math.round(orange.b * (1 - t) + purple.b * t);
   return `rgb(${r},${g},${b})`;
 }
 
