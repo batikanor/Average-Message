@@ -115,6 +115,16 @@ def get_memories():
     memories = Memory.query.order_by(Memory.created_at.desc()).all()
     return jsonify([m.to_dict() for m in memories]), 200
 
+@app.route('/api/reset', methods=['POST'])
+def reset_memories():
+    try:
+        num_deleted = db.session.query(Memory).delete()
+        db.session.commit()
+        return jsonify({'status': 'ok', 'deleted': num_deleted}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()

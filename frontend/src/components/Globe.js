@@ -144,12 +144,47 @@ function haversineKm(lat1, lon1, lat2, lon2) {
   return 2 * R * Math.asin(Math.sqrt(a));
 }
 
+function getClusterColor(count) {
+  // Interpolate from #ffaa00 (orange) to #000000 (black)
+  // Assume count 1 = orange, count >= 100 = black
+  const maxCount = 100;
+  const t = Math.min(count, maxCount) / maxCount;
+  // Interpolate RGB
+  const orange = { r: 255, g: 170, b: 0 };
+  const black = { r: 0, g: 0, b: 0 };
+  const r = Math.round(orange.r * (1 - t) + black.r * t);
+  const g = Math.round(orange.g * (1 - t) + black.g * t);
+  const b = Math.round(orange.b * (1 - t) + black.b * t);
+  return `rgb(${r},${g},${b})`;
+}
+
 function clusterPoints(originalPoints, mergeKm) {
   // Always work with original points, not previously clustered ones
   if (mergeKm <= 0) return originalPoints; // no clustering needed
 
   const clusters = [];
   const visited = new Set();
+
+  // If altitude is provided and > 15, cluster all into one
+  if (typeof window !== "undefined" && window.__globe_altitude > 15) {
+    if (originalPoints.length === 0) return [];
+    const lat =
+      originalPoints.reduce((sum, m) => sum + m.lat, 0) / originalPoints.length;
+    const lng =
+      originalPoints.reduce((sum, m) => sum + m.lng, 0) / originalPoints.length;
+    return [
+      {
+        lat,
+        lng,
+        count: originalPoints.length,
+        color: getClusterColor(originalPoints.length),
+        text:
+          `Count: ${originalPoints.length}\n` +
+          originalPoints.map((m) => m.text).join(" | "),
+        isCluster: true,
+      },
+    ];
+  }
 
   for (let i = 0; i < originalPoints.length; i++) {
     if (visited.has(i)) continue;
@@ -182,7 +217,7 @@ function clusterPoints(originalPoints, mergeKm) {
       lat,
       lng,
       count: members.length,
-      color: "#ffaa00",
+      color: getClusterColor(members.length),
       text:
         `Count: ${members.length}\n` + members.map((m) => m.text).join(" | "),
       isCluster: true, // Mark this as a cluster
@@ -269,6 +304,7 @@ export default function GlobeComponent({ memories, userLocation }) {
     );
 
     // Always cluster from original memories, not from previously clustered points
+    window.__globe_altitude = altitude;
     const newDisplayedPoints = clusterPoints(
       originalMemories,
       clusteringDistance

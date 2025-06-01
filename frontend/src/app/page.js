@@ -213,7 +213,7 @@ export default function Home() {
           "Felt inspired.",
         ];
         return {
-          text: `Mock memory #${i + 1}: ${texts[i % texts.length]}`,
+          text: texts[i % texts.length],
           lat,
           lng,
         };
