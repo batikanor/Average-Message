@@ -120,7 +120,7 @@ resource "null_resource" "deploy_backend" {
       # ── build & (re)run backend container on appnet ────────────────────────
       "cd /root/backend && docker build -t backend .",
       "docker rm -f backend || true",
-      "docker run -d --name backend --network=appnet -p 5000:5000 -e DATABASE_URL=postgresql://userxx:yolodoneresser@postgres:5432/db backend"
+      "docker run -d --name backend --network=appnet -p 5000:5000 -e DATABASE_URL=postgresql://userxx:yolodoneresser@postgres:5432/db -e OPENAI_API_KEY=${OPENAI_API_KEY} backend"
     ]
     connection {
       type        = "ssh"
