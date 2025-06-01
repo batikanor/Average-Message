@@ -11,6 +11,7 @@ services:
       - /app/node_modules # Separate volume for node_modules
     environment:
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+      - APP_ID=${APP_ID}
       - PORT=${FRONTEND_INTERNAL_PORT}
     command: npm run dev # Run Next.js in dev mode for hot-reloading
 
