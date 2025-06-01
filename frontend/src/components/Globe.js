@@ -234,6 +234,10 @@ export default function GlobeComponent({ memories, userLocation }) {
   const [altitude, setAltitude] = useState(2);
   const [displayedPoints, setDisplayedPoints] = useState(memories || []);
   const [originalMemories, setOriginalMemories] = useState(memories || []);
+  // Track which clusters have summaries
+  const [clusterSummaries, setClusterSummaries] = useState({});
+  // Track loading state for clusters
+  const [loadingClusters, setLoadingClusters] = useState({});
 
   // Keep track of original memories separately
   useEffect(() => {
@@ -352,6 +356,71 @@ export default function GlobeComponent({ memories, userLocation }) {
       ]
     : [];
 
+  // Helper to get all texts in a cluster (by lat/lng/count)
+  function getClusterMembers(cluster) {
+    // Find all points in originalMemories that are within a small distance of the cluster center
+    const thresholdKm = 0.5; // small threshold
+    return originalMemories.filter(
+      (m) => haversineKm(m.lat, m.lng, cluster.lat, cluster.lng) < thresholdKm
+    );
+  }
+
+  // Click handler for points
+  async function handlePointClick(point) {
+    if (!point.isCluster) return;
+    const clusterKey = `${point.lat.toFixed(5)},${point.lng.toFixed(5)},${
+      point.count
+    }`;
+    if (clusterSummaries[clusterKey] || loadingClusters[clusterKey]) return; // already loaded or loading
+    setLoadingClusters((prev) => ({ ...prev, [clusterKey]: true }));
+    // Get all texts in this cluster
+    let members = [];
+    if (point.text && point.text.startsWith("Count: ")) {
+      // Try to parse from text
+      const texts = point.text.split("\n").slice(1).join("\n").split(" | ");
+      members = texts.map((t) => ({ text: t }));
+    } else {
+      members = getClusterMembers(point);
+    }
+    const texts = members.map((m) => m.text).filter(Boolean);
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5555";
+      const res = await fetch(`${apiUrl}/api/summarize_cluster`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ texts }),
+      });
+      const data = await res.json();
+      if (data.summary) {
+        setClusterSummaries((prev) => ({
+          ...prev,
+          [clusterKey]: data.summary,
+        }));
+        // Update displayedPoints with new label for this cluster
+        setDisplayedPoints((prevPoints) =>
+          prevPoints.map((p) => {
+            if (
+              p.isCluster &&
+              p.lat.toFixed(5) === point.lat.toFixed(5) &&
+              p.lng.toFixed(5) === point.lng.toFixed(5) &&
+              p.count === point.count
+            ) {
+              return {
+                ...p,
+                text: `Count: ${p.count}\n${data.summary}`,
+              };
+            }
+            return p;
+          })
+        );
+      }
+    } catch (e) {
+      // Optionally handle error
+    } finally {
+      setLoadingClusters((prev) => ({ ...prev, [clusterKey]: false }));
+    }
+  }
+
   return (
     <div className="w-full h-[600px] bg-transparent flex items-center justify-center">
       <Globe
@@ -370,7 +439,19 @@ export default function GlobeComponent({ memories, userLocation }) {
         /* Dynamic altitude based on altitude and cluster status */
         pointAltitude={(d) => getPointAltitude(d, altitude)}
         pointResolution={16}
-        pointLabel={(d) => d.text}
+        pointLabel={(d) => {
+          const clusterKey = d.isCluster
+            ? `${d.lat.toFixed(5)},${d.lng.toFixed(5)},${d.count}`
+            : null;
+          if (d.isCluster && loadingClusters[clusterKey]) {
+            return `Count: ${d.count}\nAveraging...`;
+          }
+          if (d.isCluster && clusterSummaries[clusterKey]) {
+            return `Count: ${d.count}\n${clusterSummaries[clusterKey]}`;
+          }
+          return d.text;
+        }}
+        onPointClick={handlePointClick}
         /* ------ user ring/label ------ */
         ringsData={rings}
         ringLat={(d) => d.lat}

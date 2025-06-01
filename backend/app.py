@@ -6,6 +6,12 @@ from sqlalchemy import select
 from datetime import datetime
 import math
 import random
+import openai
+import numpy as np
+import re
+from dotenv import load_dotenv
+
+load_dotenv()
 
 DISTANCE_ALLOWED_THRESHOLD = float(
     os.getenv("DISTANCE_ALLOWED_THRESHOLD", 60)  # default 50 m
@@ -123,6 +129,79 @@ def reset_memories():
         return jsonify({'status': 'ok', 'deleted': num_deleted}), 200
     except Exception as e:
         db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/summarize_cluster', methods=['POST'])
+def summarize_cluster():
+    print("Route Called")
+    try:
+        data = request.get_json()
+        texts = data.get('texts', [])
+        if not texts or not isinstance(texts, list):
+            return jsonify({'error': 'Missing or invalid texts'}), 400
+
+        openai.api_key = os.getenv('OPENAI_API_KEY')
+        if not openai.api_key:
+            return jsonify({'error': 'OpenAI API key not set'}), 500
+
+        # Get embeddings for each text
+        embeddings = []
+        for text in texts:
+            resp = openai.embeddings.create(
+                input=text,
+                model="text-embedding-ada-002"
+            )
+            embeddings.append(resp.data[0].embedding)
+
+        avg_embedding = np.mean(np.array(embeddings), axis=0)
+
+        # LLM: Generate 10 candidate summaries
+        prompt = (
+            "Given the following messages, generate 10 different single-sentence messages that best represent their average meaning, style, and content. "
+            "Do not simply concatenate or list them. Instead, synthesize new messages that best represent the group as a whole. "
+            "Return each message on a new line.\n"
+            "Messages: " + "\n".join(f"- {t}" for t in texts)
+        )
+        chat_resp = openai.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant that summarizes and averages user messages into a single representative message."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=300,
+            temperature=0.9,
+            n=1
+        )
+        candidates_raw = chat_resp.choices[0].message.content.strip()
+        # Split into lines, remove empty lines and leading numbers/bullets
+        candidates = [re.sub(r"^[-\d.\s]*", "", line).strip() for line in candidates_raw.split("\n") if line.strip()]
+        candidates = [c for c in candidates if c]  # Remove empty
+        candidates = candidates[:10]  # Only use up to 10
+        if not candidates:
+            return jsonify({'error': 'No candidates generated'}), 500
+
+        # Get embeddings for each candidate
+        candidate_embeddings = []
+        for cand in candidates:
+            resp = openai.embeddings.create(
+                input=cand,
+                model="text-embedding-ada-002"
+            )
+            candidate_embeddings.append(resp.data[0].embedding)
+        candidate_embeddings = np.array(candidate_embeddings)
+
+        # Compute cosine similarity to avg_embedding
+        def cosine_similarity(a, b):
+            a = np.array(a)
+            b = np.array(b)
+            return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+        sims = [cosine_similarity(e, avg_embedding) for e in candidate_embeddings]
+        best_idx = int(np.argmax(sims))
+        best_summary = candidates[best_idx]
+        return jsonify({"summary": best_summary, "count": len(texts)})
+    except Exception as e:
+        import traceback
+        print("Error in /api/summarize_cluster:", traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
 if __name__ == "__main__":
