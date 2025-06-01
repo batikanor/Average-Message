@@ -422,7 +422,7 @@ export default function GlobeComponent({ memories, userLocation }) {
   }
 
   return (
-    <div className="w-full h-[600px] bg-transparent flex items-center justify-center">
+    <div className="w-full h-full bg-transparent m-0 p-0">
       <Globe
         ref={globeEl}
         globeTileEngineUrl={globeTileEngineUrl}

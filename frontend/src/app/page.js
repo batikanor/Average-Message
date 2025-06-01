@@ -304,7 +304,7 @@ export default function Home() {
   return (
     <main
       ref={containerRef}
-      className="min-h-screen w-full flex flex-col items-center justify-center bg-gradient-to-br from-gray-900 via-black to-gray-800 relative overflow-hidden"
+      className="h-screen w-full flex flex-col bg-gradient-to-br from-gray-900 via-black to-gray-800 relative overflow-hidden"
     >
       {/* Fullscreen Toggle Button */}
       <button
@@ -346,15 +346,8 @@ export default function Home() {
         )}
       </button>
       {/* Centered Globe */}
-      <div className="flex flex-col items-center justify-center w-full h-full">
-        {/* <h1 className="text-3xl md:text-4xl font-extrabold text-white mb-4 md:mb-8 drop-shadow-lg text-center">
-          Global Memory Wall
-        </h1> */}
-        <div className="w-full flex justify-center items-center">
-          <div className="w-full h-[50vh] md:h-[600px] max-w-full md:max-w-4xl">
-            <Globe memories={memories} userLocation={userLocation} />
-          </div>
-        </div>
+      <div className="w-full h-screen max-w-full">
+        <Globe memories={memories} userLocation={userLocation} />
       </div>
       {/* Geolocation warning */}
       {geoError && (
