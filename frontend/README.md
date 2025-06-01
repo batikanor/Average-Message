@@ -1,22 +1,63 @@
-# Blockscout Integration
+# Blockscout Integration & Fully On-Chain Memories
 
-This project integrates the [Blockscout App SDK](https://docs.blockscout.com/devs/blockscout-sdk) to provide real-time transaction notifications and transaction history popups directly in the app. Blockscout is used as the primary blockchain explorer for all transaction-related features, in line with the ETHGlobal Prague bounty requirements.
+This project is a fully on-chain dApp: all memories are stored and fetched directly from the blockchain. Blockscout is used as the primary explorer for all transaction feedback and history, providing real-time, interactive explorer notifications for every on-chain action.
 
-## How Blockscout is Used
+## How It Works
 
-- **Transaction Toasts:** Whenever a transaction is sent, users can see real-time status updates (pending, success, error) powered by Blockscout.
-- **Transaction History:** Users can view recent transactions for a specific address or the whole chain, with details and explorer links, all via Blockscout.
-- **Explorer Links:** All explorer links in the app point to Blockscout, ensuring a consistent experience.
+- **On-Chain Storage:** When you submit a memory, it is stored on the blockchain via a smart contract. No backend or Postgres is used for memories.
+- **Live Explorer Feedback:** As soon as you submit, a Blockscout transaction toast appears, showing real-time status and a link to the explorer.
+- **Fetching Memories:** All memories are fetched from the blockchain and displayed on the globe.
+- **Explorer Links:** All explorer links and transaction notifications use Blockscout.
 
 ## Demo Instructions
 
-- To see Blockscout in action, use the two demo buttons at the bottom right of the main page:
-  - **Show Tx Toast:** Pops up a Blockscout transaction notification for a sample transaction.
-  - **Tx History:** Opens the Blockscout transaction history popup for Ethereum mainnet.
+1. **Connect MetaMask** (or any EVM wallet) to the correct network.
+2. **Submit a Memory:** Click the "+" button, enter your memory, and sign the transaction. Watch the Blockscout toast for real-time status.
+3. **See Memories:** All memories are loaded from the blockchain and shown on the globe.
+4. **Explorer Features:** Use the Blockscout buttons to view transaction history and details directly in the explorer.
 
-This integration ensures users get instant, interactive feedback on their blockchain activity, and makes Blockscout the default explorer for the app.
+## Deploying the Smart Contract
+
+1. Deploy the following Solidity contract to your preferred EVM chain:
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract Memories {
+    struct Memory {
+        string memoryText;
+        int256 lat;
+        int256 lng;
+    }
+    Memory[] public memories;
+
+    function storeMemory(string memoryText, int256 lat, int256 lng) public {
+        memories.push(Memory(memoryText, lat, lng));
+    }
+
+    function getAllMemories() public view returns (Memory[] memory) {
+        return memories;
+    }
+}
+```
+
+2. Copy the deployed contract address and update `CONTRACT_ADDRESS` in `src/app/page.js`.
+
+## Configuration
+
+- Set the contract address in the frontend code:
+  - Open `src/app/page.js`
+  - Replace `0xYourContractAddressHere` with your deployed contract address.
+- Make sure your wallet is connected to the same network as the contract.
+
+## Why Blockscout?
+
+Blockscout provides the best explorer experience for users and developers. All explorer links, transaction notifications, and history popups are powered by Blockscout, making it the default and only explorer for this app.
 
 ---
+
+This project is ready for hackathon demos and real-world use. All user actions are on-chain, and Blockscout is front and center for every transaction!
 
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
 

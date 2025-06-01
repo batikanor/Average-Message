@@ -7,6 +7,14 @@ import Globe from "../components/Globe";
 
 // NOTE: Make sure to create the action ID 'add-memory' in the Worldcoin Developer Portal and configure it as needed for your app.
 
+// IMPORTANT: Replace this with your deployed contract address!
+const CONTRACT_ADDRESS = "0x1234567890abcdef1234567890abcdef12345678"; // <-- Put your deployed contract address here
+// IMPORTANT: ABI must match your deployed contract
+const CONTRACT_ABI = [
+  "function storeMemory(string memoryText, int256 lat, int256 lng) public",
+  "function getAllMemories() public view returns (tuple(string memoryText, int256 lat, int256 lng)[])",
+];
+
 export default function Home() {
   const [message, setMessage] = useState("");
   const containerRef = useRef(null);
@@ -25,12 +33,6 @@ export default function Home() {
   const [verifying, setVerifying] = useState(false);
   const { openTxToast } = useNotification();
   const { openPopup } = useTransactionPopup();
-
-  const CONTRACT_ADDRESS = "0xYourContractAddressHere";
-  const CONTRACT_ABI = [
-    "function storeMemory(string memoryText, int256 lat, int256 lng) public",
-    "function getAllMemories() public view returns (tuple(string memoryText, int256 lat, int256 lng)[])",
-  ];
 
   useEffect(() => {
     async function fetchMessage() {
