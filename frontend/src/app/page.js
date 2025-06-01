@@ -269,7 +269,8 @@ export default function Home() {
         return;
       }
       // Send proof to backend for verification
-      const verifyResponse = await fetch("/api/verify", {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5555";
+      const verifyResponse = await fetch(`${apiUrl}/api/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

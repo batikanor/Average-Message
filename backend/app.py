@@ -10,6 +10,7 @@ import openai
 import numpy as np
 import re
 from dotenv import load_dotenv
+import requests
 
 load_dotenv()
 
@@ -203,6 +204,51 @@ def summarize_cluster():
         import traceback
         print("Error in /api/summarize_cluster:", traceback.format_exc())
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/verify', methods=['POST'])
+def verify_proof():
+    data = request.get_json()
+    payload = data.get('payload') or {}
+    action = data.get('action')
+    signal = data.get('signal')
+
+    required = ["proof", "merkle_root", "nullifier_hash", "verification_level", "version"]
+    miss = [k for k in required if k not in payload]
+    if miss:
+        return jsonify(error=f"Missing in payload: {', '.join(miss)}"), 400
+
+    app_id = os.getenv("APP_ID")
+    if not app_id:
+        return jsonify(error="APP_ID not set on server"), 500
+
+    api_key = os.getenv("DEV_PORTAL_API_KEY")
+    headers = {"Content-Type": "application/json"}
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+
+    level_map = {"orb": "orb", "device": "device"}
+    cred_type = level_map.get(payload["verification_level"].lower())
+    if not cred_type:
+        return jsonify(error="Unknown verification_level"), 400
+
+    body = {
+        "action": action,
+        "signal": signal,
+        "proof": payload["proof"],
+        "merkle_root": payload["merkle_root"],
+        "nullifier_hash": payload["nullifier_hash"],
+        "credential_type": cred_type,
+        "version": payload["version"],
+    }
+    url = f"https://developer.worldcoin.org/api/v2/verify/{app_id}"
+
+    try:
+        r = requests.post(url, json=body, headers=headers, timeout=10)
+        if r.status_code == 200:
+            return jsonify(verifyRes=r.json(), status=200)
+        return jsonify(error="Verification failed", worldcoin_status=r.status_code, details=r.text), 400
+    except Exception as e:
+        return jsonify(error=f"Network error: {e}"), 502
 
 if __name__ == "__main__":
     with app.app_context():
