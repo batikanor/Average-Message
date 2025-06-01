@@ -16,6 +16,8 @@ COPY . .
 # Accept NEXT_PUBLIC_API_URL as build argument and set as environment variable
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ARG APP_ID
+ENV APP_ID=$APP_ID
 
 # Build the static site (creates /app/out)
 RUN npm run build
