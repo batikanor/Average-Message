@@ -1,3 +1,4 @@
+import { MinikitProvider } from "@worldcoin/minikit-js";
 import localFont from "next/font/local";
 import "./globals.css";
 // import Navbar from '../components/Navbar';
@@ -25,8 +26,10 @@ export default function RootLayout({ children }) {
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
       {/* <MinikitProvider> */}
       <body className="antialiased min-h-screen w-full bg-gradient-to-br from-gray-900 via-black to-gray-800">
-        {/* Minimal layout: just render children centered on a dark background */}
-        {children}
+        <MinikitProvider>
+          {/* Minimal layout: just render children centered on a dark background */}
+          {children}
+        </MinikitProvider>
       </body>
       {/* </MinikitProvider> */}
     </html>
